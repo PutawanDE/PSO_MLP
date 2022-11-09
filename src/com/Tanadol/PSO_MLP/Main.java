@@ -1,29 +1,19 @@
 package com.Tanadol.PSO_MLP;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class Main {
-    private static int[] nodes = new int[]{8, 5, 1};
+    private static int[] nodes = new int[]{8, 4, 4, 1};
     private static final MathFunction leakyReluFn = (x) -> {
         if (x <= 0) return 0.01 * x;
         else return x;
     };
 
-    private static final MathFunction sigmoidFn = (x) -> 1.0 / (1.0 + Math.exp(x));
-
-    private static final MathFunction tanhFn = (x) -> 2.0 / (1 + Math.exp(-2.0 * x)) - 1.0;
-
-
     private static double minWeight = -1.0;
     private static double maxWeight = 1.0;
-
-    private static double minV = -1.0;
-    private static double maxV = 1.0;
 
     public static void main(String[] args) throws IOException {
         int k = 10;
@@ -38,6 +28,9 @@ public class Main {
             numDimensions += nodes[j] * nodes[j - 1];
         }
 
+        StringBuilder trainingSetErr = new StringBuilder();
+        StringBuilder testSetErr = new StringBuilder();
+
         for (int i = 0; i < k; i++) {
             List<Pair<double[][], double[][]>> normData = minMaxNorm(folds, i);
 
@@ -46,8 +39,8 @@ public class Main {
                 biases[j] = new Matrix(nodes[j + 1], 1);
             }
 
-            Swarm swarm = new Swarm(50, numDimensions,
-                    new double[]{minWeight, maxWeight}, new double[]{minV, maxV});
+
+            Swarm swarm = new Swarm(50, numDimensions, new double[]{minWeight, maxWeight});
 
             Network network = new Network(nodes, leakyReluFn, leakyReluFn, minWeight, maxWeight, biases);
 
@@ -55,17 +48,36 @@ public class Main {
                 if (j == i) continue;
 
                 for (int r = 0; r < rows; r++) {
-                    swarm.run(100, 0.5, 0.7, 0.4, network, normData.get(j).x[r], normData.get(j).y[r]);
+                    swarm.run(100, 0.7, 1.4, 0.4, network, normData.get(j).x[r], normData.get(j).y[r]);
                 }
             }
 
             Matrix bestSolution = swarm.getBestSolution();
             network.setWeights(bestSolution.data[0]);
+
+            // Test set
+            double sum = 0;
             for (int r = 0; r < rows; r++) {
-                System.out.println("loss: " + network.feedForward(normData.get(i).x[r], normData.get(i).y[r]));
-                System.out.println("output: " + network.activations[nodes.length - 1].data[0][0]);
+                sum += network.feedForward(normData.get(i).x[r], normData.get(i).y[r]);
             }
+            double err = sum / rows;
+            testSetErr.append(err).append(',');
+
+            // Training set
+            sum = 0;
+            for (int j = 0; j < normData.size(); j++) {
+                if (j == i) continue;
+
+                for (int r = 0; r < rows; r++) {
+                    sum += network.feedForward(normData.get(j).x[r], normData.get(j).y[r]);
+                }
+            }
+            err = sum / (rows * (k - 1));
+            trainingSetErr.append(err).append(',');
         }
+
+        StringBuilder result = trainingSetErr.append('\n').append(testSetErr);
+        saveResult(result, "result/8-4-4-1/result.csv");
     }
 
     private static List<Pair<double[][], double[][]>> readSplitTrainingData(String filename, int k, int sampleSize) throws IOException {
@@ -175,5 +187,14 @@ public class Main {
             System.arraycopy(orgRow, startCol, dataClone[i], 0, colLen);
         }
         return dataClone;
+    }
+
+    public static void saveResult(StringBuilder stringBuilder, String name) {
+        File file = new File("D:/PUTAWAN/ComputerProjects/CI/HW4-PSO/" + name + ".csv");
+        try (BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(file))) {
+            bufferedWriter.append(stringBuilder);
+        } catch (IOException exception) {
+            exception.printStackTrace();
+        }
     }
 }

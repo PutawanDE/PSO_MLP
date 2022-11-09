@@ -10,27 +10,23 @@ public class Swarm {
     public double gbest = Double.POSITIVE_INFINITY;
     public Matrix x_gbest;
 
-    public Swarm(int numParticles, int numDimensions, double[] xRange, double[] vRange) {
+    public Swarm(int numParticles, int numDimensions, double[] xRange) {
         particles = new Particle[numParticles];
-        Arrays.setAll(particles, i -> new Particle(numDimensions, xRange, vRange));
+        Arrays.setAll(particles, i -> new Particle(numDimensions, xRange));
     }
 
-    // lbest with Clerc and Kennedy Constriction and inertia weight
+    // gbest with inertia weight
     public void run(int iteration, double c1, double c2, double inertiaWeight,
                     Network network, double[] input, double[] desiredOutput) {
         for (int i = 0; i < iteration; i++) {
+            double f = 0;
             for (Particle p : particles) {
                 network.setWeights(p.x.data[0]);
-                double f = network.feedForward(input, desiredOutput);
+                f = network.feedForward(input, desiredOutput);
 
                 if (f < p.pbest) {
                     p.pbest = f;
                     p.x_pbest = new Matrix(p.x);
-                }
-
-                if (f < p.lbest) {
-                    p.lbest = f;
-                    p.x_lbest = new Matrix(p.x);
                 }
 
                 if (f < gbest) {
